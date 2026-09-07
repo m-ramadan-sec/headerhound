@@ -37,3 +37,14 @@ def test_cli_can_fail_an_automation_threshold(monkeypatch, capsys) -> None:
     )
     assert main(["https://example.test", "--fail-under", "90"]) == 1
     assert "Security score:" in capsys.readouterr().out
+
+
+def test_cli_json_alias_and_severity_threshold(monkeypatch, capsys) -> None:
+    monkeypatch.setattr("headerhound.cli.ensure_public_target", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        ScanClient,
+        "fetch",
+        lambda self, url: FetchedResponse(final_url=url, status_code=200, headers={}, redirects=()),
+    )
+    assert main(["https://example.test", "--json", "--fail-on", "high"]) == 1
+    assert "metadata" in json.loads(capsys.readouterr().out)

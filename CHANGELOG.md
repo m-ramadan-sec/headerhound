@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-07
+
+### Added
+
+- Passive cookie metadata analysis with value redaction.
+- Passive CORS, cache, transport, and technology-disclosure checks.
+- Structured JSON sections for cookies, CORS, transport, and scan metadata.
+- `--json`, `--min-score`, and `--fail-on` CLI options.
+
+### Changed
+
+- CSP analysis now evaluates directive-level hardening signals.
+- Redirect targets are checked against the existing private-address policy.
+
 ## [0.1.1] - 2026-09-07
 
 ### Added

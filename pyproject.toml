@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "headerhound"
-version = "0.1.1"
+version = "0.2.0"
 description = "A defensive, explainable CLI for auditing HTTP security response headers."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -68,6 +68,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"] # Findings carry human-readable remediation text.
 
 [tool.ruff.format]
 quote-style = "double"

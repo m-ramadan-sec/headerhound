@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from . import __version__
 from .analyzer import assess
 from .client import FetchError, ScanClient
+from .models import ScanResult
 from .output import render_json, render_table
 from .safety import TargetError, ensure_public_target, normalize_url
 
@@ -25,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("table", "json"),
         default="table",
         help="Report format (default: table)",
+    )
+    parser.add_argument(
+        "--json",
+        dest="format",
+        action="store_const",
+        const="json",
+        help="Alias for --format json",
     )
     parser.add_argument(
         "--timeout",
@@ -64,6 +72,18 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="SCORE",
         help="Exit with status 1 when the completed scan score is below SCORE (0-100)",
     )
+    parser.add_argument(
+        "--min-score",
+        dest="fail_under",
+        type=_score,
+        metavar="SCORE",
+        help="Alias for --fail-under SCORE",
+    )
+    parser.add_argument(
+        "--fail-on",
+        choices=("low", "medium", "high"),
+        help="Exit with status 1 when a finding meets or exceeds this severity",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -79,6 +99,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             follow_redirects=not args.no_redirects,
             verify_tls=not args.insecure,
             min_interval=args.min_interval,
+            allow_private=args.allow_private,
         ).fetch(target)
         result = assess(
             target=target,
@@ -86,13 +107,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             status_code=response.status_code,
             headers=response.headers,
             redirects=response.redirects,
+            cookies=response.cookies,
+            initial_url=response.initial_url,
         )
     except (TargetError, FetchError, ValueError) as exc:
         _write_error(str(exc), args.format)
         return 2
 
     print(render_json(result) if args.format == "json" else render_table(result))
-    return 1 if args.fail_under is not None and result.score < args.fail_under else 0
+    if args.fail_under is not None and result.score < args.fail_under:
+        return 1
+    if args.fail_on and _has_severity(result, args.fail_on):
+        return 1
+    return 0
 
 
 def _write_error(message: str, output_format: str) -> None:
@@ -128,6 +155,12 @@ def _score(value: str) -> int:
     if number > 100:
         raise argparse.ArgumentTypeError("must be between 0 and 100")
     return number
+
+
+def _has_severity(result: ScanResult, threshold: str) -> bool:
+    """Return whether a ScanResult has a finding at the selected threshold."""
+    ranks = {"info": 0, "low": 1, "medium": 2, "high": 3}
+    return any(ranks[finding.severity.value] >= ranks[threshold] for finding in result.findings)
 
 
 if __name__ == "__main__":  # pragma: no cover

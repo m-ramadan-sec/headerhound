@@ -14,6 +14,8 @@ class TargetError(ValueError):
 def normalize_url(value: str) -> str:
     """Validate an absolute HTTP(S) URL and remove its non-request fragment."""
     try:
+        if any(character.isspace() or ord(character) < 32 for character in value):
+            raise TargetError("Target URLs cannot contain whitespace or control characters.")
         parsed = urlsplit(value.strip())
         _validate_parts(parsed)
         # Fragments are not sent in HTTP requests and should not affect reports.

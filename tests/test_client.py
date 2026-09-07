@@ -15,6 +15,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_response(200)
         self.send_header("Content-Security-Policy", "default-src 'self'")
+        self.send_header("Set-Cookie", "session=secret; Secure; HttpOnly; SameSite=Lax")
+        self.send_header("Set-Cookie", "theme=dark; Secure; SameSite=Lax")
         self.end_headers()
 
     def log_message(self, format: str, *args: object) -> None:
@@ -27,7 +29,9 @@ def test_client_follows_bounded_redirects() -> None:
     thread.start()
     try:
         port = server.server_address[1]
-        response = ScanClient(min_interval=0).fetch(f"http://127.0.0.1:{port}/redirect")
+        response = ScanClient(min_interval=0, allow_private=True).fetch(
+            f"http://127.0.0.1:{port}/redirect"
+        )
     finally:
         server.shutdown()
         server.server_close()
@@ -35,3 +39,5 @@ def test_client_follows_bounded_redirects() -> None:
     assert response.status_code == 200
     assert response.redirects == (f"http://127.0.0.1:{port}/redirect",)
     assert response.headers["content-security-policy"] == "default-src 'self'"
+    assert len(response.cookies) == 2
+    assert "secret" not in response.headers.values()

@@ -3,7 +3,7 @@
 [![CI](https://github.com/m-ramadan-sec/headerhound/actions/workflows/ci.yml/badge.svg)](https://github.com/m-ramadan-sec/headerhound/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-HeaderHound is a defensive, explainable command-line scanner for HTTP response security headers. It requests one URL, follows a bounded redirect chain, and reports missing or risky configurations in a readable terminal table or stable JSON.
+HeaderHound is a defensive web-security posture auditor. It requests one authorized URL, follows a bounded redirect chain, and reports configuration signals in a readable terminal table or stable JSON. It is not a penetration-test or vulnerability-exploitation tool.
 
 It is intended for systems you own or are authorized to assess. It does not crawl, exploit vulnerabilities, fuzz endpoints, or perform destructive actions.
 
@@ -37,6 +37,8 @@ The published project page lists the exact wheel and source-distribution files f
 ```bash
 headerhound https://example.com
 headerhound https://example.com --format json
+headerhound https://example.com --json --min-score 80
+headerhound https://staging.example.com --fail-on high
 headerhound https://example.com --format json --fail-under 80
 headerhound https://service.internal --allow-private --timeout 15
 ```
@@ -58,6 +60,7 @@ Security score: 78/100 (grade C)
 
 Exit status is `0` for a completed scan and `2` for invalid input or retrieval failure. JSON errors are written to standard error as `{"error": "..."}`.
 Use `--fail-under SCORE` to return exit status `1` when a completed scan is below a chosen CI threshold.
+`--min-score` is an alias for `--fail-under`; `--fail-on low|medium|high` returns `1` when a finding meets that severity.
 
 ## Checks
 
@@ -68,15 +71,26 @@ HeaderHound assesses the presence and selected high-signal weak configurations o
 - `X-Content-Type-Options` and `X-Frame-Options`
 - `Referrer-Policy` and `Permissions-Policy`
 - `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, and `Cross-Origin-Embedder-Policy`
+- `Set-Cookie` attributes without exposing cookie values: `Secure`, `HttpOnly`, `SameSite`, parent-domain scope, and long lifetimes
+- Passive CORS policy (`Access-Control-Allow-*`), including wildcard origin/method/header settings
+- HTTP-to-HTTPS redirects, HSTS `max-age`, `includeSubDomains`, and `preload`
+- Technology disclosure headers (`Server`, `X-Powered-By`, and ASP.NET version headers)
+- Conservative cache signals when a response sets a session-like cookie
 
-The score begins at 100 and subtracts documented weighted findings. It is a prioritization aid, not a compliance result or a substitute for application-specific review.
+The score begins at 100 and subtracts the deduction attached to each finding in the report. It is deterministic and explainable, but it is a prioritization aid—not a compliance result or a substitute for application-specific review.
+
+## JSON and CI/CD
+
+JSON output has stable top-level `target`, `final_url`, `status`, `score`, `grade`, `headers`, `cookies`, `cors`, `transport`, `findings`, and `metadata` sections. Cookie values and `Set-Cookie` header values are never emitted. A CI job can scan an authorized staging endpoint with `headerhound "$STAGING_URL" --json --fail-on high`.
+
+CORS and cache findings are passive configuration signals. HeaderHound does not send probing origins, credentials, exploit payloads, or destructive requests.
 
 ## Safety and network behavior
 
 - Only `http` and `https` URLs are accepted; credentials embedded in URLs are rejected.
 - By default, targets resolving to loopback, private, link-local, multicast, reserved, or unspecified addresses are rejected. Use `--allow-private` only on systems you are authorized to scan.
 - TLS certificates are verified by default. `--insecure` exists only for authorized diagnostic use.
-- The default timeout is 10 seconds, redirects are limited to 5, and the client disables environment proxy settings.
+- The default timeout is 10 seconds, redirects are limited to 5, and the client disables environment proxy settings. Each redirect target is rechecked against the public-address policy.
 - One request is made per invocation. `--min-interval` is available for integrations which reuse the client.
 
 Private-address filtering is a useful guardrail, not a complete SSRF defense against DNS rebinding or hostile networks. Run scans from a suitably restricted network when targets may be untrusted.
@@ -94,7 +108,11 @@ CLI → URL validation / target policy → bounded HTTP client → header analyz
 
 ## Limitations
 
-HeaderHound evaluates only the final HTTP response (while reporting the redirect chain). It cannot determine whether a header is consistently set on every route, whether a CSP is compatible with the application, whether TLS configuration is strong, or whether application behavior is secure. Security headers are defense in depth.
+HeaderHound evaluates one response (while reporting the redirect chain). It cannot determine whether headers are consistent on every route, whether a reflected CORS origin is authorized, whether a CSP is compatible with the application, whether TLS configuration is strong, or whether application behavior is secure. DNS-rebinding resistance also requires egress controls. Security headers are defense in depth.
+
+## Release process
+
+Maintainers run tests, linting, formatting, `python -m build`, and `python -m twine check dist/*` before creating a matching GitHub release tag. The release workflow uses PyPI Trusted Publishing; it does not use a stored PyPI API token.
 
 ## Development
 

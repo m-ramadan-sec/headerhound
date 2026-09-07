@@ -31,6 +31,23 @@ class Finding:
 
 
 @dataclass(frozen=True)
+class CookieMetadata:
+    """Non-secret attributes parsed from one Set-Cookie response header."""
+
+    name: str
+    secure: bool
+    httponly: bool
+    samesite: str | None
+    domain: str | None
+    path: str | None
+    max_age: int | None
+    expires: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class ScanResult:
     target: str
     final_url: str
@@ -40,15 +57,24 @@ class ScanResult:
     findings: tuple[Finding, ...]
     score: int
     grade: str
+    cookies: tuple[CookieMetadata, ...] = ()
+    cors: dict[str, Any] | None = None
+    transport: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "target": self.target,
             "final_url": self.final_url,
             "status_code": self.status_code,
+            "status": {"code": self.status_code},
             "headers": self.headers,
             "redirects": list(self.redirects),
+            "cookies": [cookie.to_dict() for cookie in self.cookies],
+            "cors": self.cors or {},
+            "transport": self.transport or {},
             "findings": [finding.to_dict() for finding in self.findings],
             "score": self.score,
             "grade": self.grade,
+            "metadata": self.metadata or {"schema_version": "1.0", "analysis_mode": "passive"},
         }
