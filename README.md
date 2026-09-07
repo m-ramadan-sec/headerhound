@@ -79,11 +79,33 @@ HeaderHound assesses the presence and selected high-signal weak configurations o
 
 The score begins at 100 and subtracts the deduction attached to each finding in the report. It is deterministic and explainable, but it is a prioritization aid—not a compliance result or a substitute for application-specific review.
 
-## JSON and CI/CD
+## JSON output
 
-JSON output has stable top-level `target`, `final_url`, `status`, `score`, `grade`, `headers`, `cookies`, `cors`, `transport`, `findings`, and `metadata` sections. Cookie values and `Set-Cookie` header values are never emitted. A CI job can scan an authorized staging endpoint with `headerhound "$STAGING_URL" --json --fail-on high`.
+JSON output has stable top-level `target`, `final_url`, `status`, `score`, `grade`, `headers`, `cookies`, `cors`, `transport`, `findings`, and `metadata` sections. Cookie values and `Set-Cookie` header values are never emitted.
 
 CORS and cache findings are passive configuration signals. HeaderHound does not send probing origins, credentials, exploit payloads, or destructive requests.
+
+## GitHub Actions integration
+
+The included [manual workflow example](.github/workflows/headerhound-example.yml) installs HeaderHound from PyPI, scans one explicitly configured HTTPS target, uploads the JSON report, and fails CI when policy thresholds are missed. It does not run on pushes, pull requests, schedules, or arbitrary URLs.
+
+To use it in your repository:
+
+1. Copy `.github/workflows/headerhound-example.yml` to your repository.
+2. In **Settings → Secrets and variables → Actions → Variables**, add `HEADERHOUND_TARGET` with an HTTPS endpoint you own or are authorized to assess, such as `https://staging.example.com`.
+3. Optionally add `HEADERHOUND_MIN_SCORE` (the example defaults to `80`).
+4. Run **HeaderHound (example)** manually from the Actions tab.
+
+The workflow runs:
+
+```bash
+python -m pip install --upgrade headerhound
+headerhound "$HEADERHOUND_TARGET" --json --min-score 80 --fail-on high
+```
+
+`--min-score SCORE` and `--fail-under SCORE` are equivalent: both return exit code `1` when the completed score is below the threshold. `--fail-on low|medium|high` returns `1` if a finding meets or exceeds that severity. Exit code `2` means HeaderHound could not safely validate or fetch the target.
+
+Use a repository variable rather than a secret for a normal staging URL. Do not put credentials, access tokens, or sensitive query parameters in a target URL: the URL is included in the resulting report. Private, localhost, and link-local targets are blocked by default; do not add `--allow-private` to a shared CI workflow unless the runner and target are tightly controlled.
 
 ## Safety and network behavior
 
