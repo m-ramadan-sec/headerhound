@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest a narrowly scoped, defensive improvement.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Explain the practical audit or maintenance need.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: This request does not add exploitation, evasive, destructive, or unauthorized scanning behavior.
+          required: true
