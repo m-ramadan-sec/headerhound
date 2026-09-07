@@ -1,0 +1,58 @@
+name: Package validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build and validate distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install build tools
+        run: python -m pip install --upgrade build twine
+      - name: Build wheel and source distribution
+        run: python -m build --outdir dist
+      - name: Validate package metadata
+        run: python -m twine check dist/*
+      - name: Inspect distribution contents
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tarfile import open as open_tar
+          from zipfile import ZipFile
+
+          archives = list(Path("dist").glob("*"))
+          assert len(archives) == 2, f"expected wheel and sdist, found: {archives}"
+          banned = ("/.github/", "/.venv/", "/dist/", "/tests/")
+          for archive in archives:
+              if archive.suffix == ".whl":
+                  with ZipFile(archive) as package:
+                      names = package.namelist()
+              else:
+                  with open_tar(archive) as package:
+                      names = package.getnames()
+              assert all(not name.startswith("/") and ".." not in Path(name).parts for name in names)
+              assert not any(part in name for part in banned for name in names), names
+          PY
+      - name: Install built wheel in a clean environment
+        run: |
+          python -m venv .package-venv
+          .package-venv/bin/python -m pip install --upgrade pip
+          .package-venv/bin/python -m pip install dist/*.whl
+          .package-venv/bin/headerhound --help
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error

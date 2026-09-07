@@ -9,13 +9,28 @@ It is intended for systems you own or are authorized to assess. It does not craw
 
 ## Install
 
-Requires Python 3.10 or newer.
+HeaderHound requires Python 3.10 or newer. Once a release is published to PyPI, install it with either `pip` or `pipx`:
 
 ```bash
+python -m pip install --upgrade headerhound
+# or, for an isolated command-line application:
 pipx install headerhound
-# or, from a source checkout:
-python -m pip install .
 ```
+
+For an unreleased source checkout, use `python -m pip install .` instead.
+
+## Packaging and distribution
+
+GitHub releases are the source of versioned distributions. The release workflow builds a wheel and source distribution, validates both, and publishes them to [PyPI](https://pypi.org/project/headerhound/) with PyPI Trusted Publishing. It uses GitHub Actions OIDC and does not store a PyPI API token in this repository.
+
+After publication, install the latest release with:
+
+```bash
+python -m pip install --upgrade headerhound
+pipx install headerhound
+```
+
+The published project page lists the exact wheel and source-distribution files for every release.
 
 ## Usage
 
